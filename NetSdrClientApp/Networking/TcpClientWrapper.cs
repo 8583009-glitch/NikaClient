@@ -16,7 +16,7 @@ namespace NetSdrClientApp.Networking
         private int _port;
         private TcpClient? _tcpClient;
         private NetworkStream? _stream;
-        private CancellationTokenSource _cts;
+        private CancellationTokenSource? _cts;
 
         public bool Connected => _tcpClient != null && _tcpClient.Connected && _stream != null;
 
@@ -40,15 +40,20 @@ namespace NetSdrClientApp.Networking
 
             try
             {
+                _cts?.Dispose();
                 _cts = new CancellationTokenSource();
+
                 _tcpClient.Connect(_host, _port);
                 _stream = _tcpClient.GetStream();
                 Console.WriteLine($"Connected to {_host}:{_port}");
+
                 _ = StartListeningAsync();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to connect: {ex.Message}");
+                _cts?.Dispose();
+                _cts = null;
             }
         }
 
@@ -59,10 +64,12 @@ namespace NetSdrClientApp.Networking
                 _cts?.Cancel();
                 _stream?.Close();
                 _tcpClient?.Close();
-
+                
+                _cts?.Dispose();
                 _cts = null;
                 _tcpClient = null;
                 _stream = null;
+                
                 Console.WriteLine("Disconnected.");
             }
             else
@@ -76,7 +83,7 @@ namespace NetSdrClientApp.Networking
             if (Connected && _stream != null && _stream.CanWrite)
             {
                 Console.WriteLine($"Message sent: " + data.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
-                await _stream.WriteAsync(data, 0, data.Length);
+                await _stream.WriteAsync(data.AsMemory(0, data.Length));
             }
             else
             {
@@ -90,7 +97,7 @@ namespace NetSdrClientApp.Networking
             if (Connected && _stream != null && _stream.CanWrite)
             {
                 Console.WriteLine($"Message sent: " + data.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
-                await _stream.WriteAsync(data, 0, data.Length);
+                await _stream.WriteAsync(data.AsMemory(0, data.Length));
             }
             else
             {
@@ -100,26 +107,24 @@ namespace NetSdrClientApp.Networking
 
         private async Task StartListeningAsync()
         {
-            if (Connected && _stream != null && _stream.CanRead)
+            if (Connected && _stream != null && _stream.CanRead && _cts != null)
             {
                 try
                 {
-                    Console.WriteLine($"Starting listening for incomming messages.");
-
+                    Console.WriteLine($"Starting listening for incoming messages.");
                     while (!_cts.Token.IsCancellationRequested)
                     {
                         byte[] buffer = new byte[8194];
-
-                        int bytesRead = await _stream.ReadAsync(buffer, 0, buffer.Length, _cts.Token);
+                        int bytesRead = await _stream.ReadAsync(buffer.AsMemory(0, buffer.Length), _cts.Token);
                         if (bytesRead > 0)
                         {
                             MessageReceived?.Invoke(this, buffer.AsSpan(0, bytesRead).ToArray());
                         }
                     }
                 }
-                catch (OperationCanceledException ex)
+                catch (OperationCanceledException)
                 {
-                    //empty
+                    // Expected when cancellation is requested
                 }
                 catch (Exception ex)
                 {
@@ -136,5 +141,4 @@ namespace NetSdrClientApp.Networking
             }
         }
     }
-
 }
