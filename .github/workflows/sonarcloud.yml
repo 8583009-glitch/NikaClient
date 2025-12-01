@@ -13,7 +13,8 @@ jobs:
     runs-on: windows-latest   
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with: 
+          fetch-depth: 0
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
@@ -21,22 +22,25 @@ jobs:
       - name: SonarScanner Begin
         run: |
           dotnet tool install --global dotnet-sonarscanner
-          echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
+          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
           dotnet sonarscanner begin `
-          /d:sonar.projectKey="8583009-glitch_NikaClient" `
-          /d:sonar.organization="8583009-glitch" `
-          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-          /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
-          /d:sonar.cpd.cs.minimumTokens=40 `
-          /d:sonar.cpd.cs.minimumLines=5 `
-          /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
-          /d:sonar.qualitygate.wait=false
+            /k:"8583009-glitch_NikaClient" `
+            /o:"8583009-glitch" `
+            /d:sonar.host.url="https://sonarcloud.io" `
+            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
+            /d:sonar.cpd.cs.minimumTokens=40 `
+            /d:sonar.cpd.cs.minimumLines=5 `
+            /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" `
+            /d:sonar.qualitygate.wait=false
         shell: pwsh
    
       - name: Restore
         run: dotnet restore NetSdrClient.sln
+        
       - name: Build
         run: dotnet build NetSdrClient.sln -c Release --no-restore
+        
       - name: SonarScanner End
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
         shell: pwsh
