@@ -1,15 +1,12 @@
 name: SonarCloud analysis
-
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
-
 permissions:
   pull-requests: read 
-
 jobs:
   sonar-check:
     name: Sonar Check
@@ -17,19 +14,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
-
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-
    
       - name: SonarScanner Begin
         run: |
           dotnet tool install --global dotnet-sonarscanner
           echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
           dotnet sonarscanner begin `
-          /d:sonar.projectKey="<8583009-glitch_NikaClient>" `
-          /d:sonar.organization="<8583009-glitch>" `
+          /d:sonar.projectKey="8583009-glitch_NikaClient" `
+          /d:sonar.organization="8583009-glitch" `
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
           /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
           /d:sonar.cpd.cs.minimumTokens=40 `
