@@ -29,36 +29,35 @@ namespace NetSdrClientApp.Networking
         }
 
         public void Connect()
-{
-    if (Connected)
-    {
-        Console.WriteLine($"Already connected to {_host}:{_port}");
-        return;
-    }
-
-    _tcpClient = new TcpClient();
-
-    try
-    {
-        if (_cts != null)
         {
-            _cts.Dispose();
+            if (Connected)
+            {
+                Console.WriteLine($"Already connected to {_host}:{_port}");
+                return;
+            }
+
+            _tcpClient = new TcpClient();
+            try
+            {
+                if (_cts != null)
+                {
+                    _cts.Dispose();
+                }
+                _cts = new CancellationTokenSource();
+
+                _tcpClient.Connect(_host, _port);
+                _stream = _tcpClient.GetStream();
+                Console.WriteLine($"Connected to {_host}:{_port}");
+
+                _ = StartListeningAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to connect: {ex.Message}");
+                // Видалено redundant Dispose() - вже зроблено вище в if (_cts != null)
+                _cts = null;
+            }
         }
-        _cts = new CancellationTokenSource();
-
-        _tcpClient.Connect(_host, _port);
-        _stream = _tcpClient.GetStream();
-        Console.WriteLine($"Connected to {_host}:{_port}");
-
-        _ = StartListeningAsync();
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Failed to connect: {ex.Message}");
-        _cts?.Dispose();
-        _cts = null;
-    }
-}
 
         public void Disconnect()
         {
