@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace EchoTcpServer
+namespace MyNamespace
 {
     /// <summary>
     /// This program was designed for test purposes only
@@ -15,8 +14,8 @@ namespace EchoTcpServer
     public class EchoServer
     {
         private readonly int _port;
-        private TcpListener _listener;
-        private readonly CancellationTokenSource _cancellationTokenSource;
+        private TcpListener? _listener;
+        private CancellationTokenSource _cancellationTokenSource;
 
         public EchoServer(int port)
         {
@@ -29,7 +28,6 @@ namespace EchoTcpServer
             _listener = new TcpListener(IPAddress.Any, _port);
             _listener.Start();
             Console.WriteLine($"Server started on port {_port}.");
-
             while (!_cancellationTokenSource.Token.IsCancellationRequested)
             {
                 try
@@ -44,7 +42,6 @@ namespace EchoTcpServer
                     break;
                 }
             }
-
             Console.WriteLine("Server shutdown.");
         }
 
@@ -56,14 +53,14 @@ namespace EchoTcpServer
                 {
                     byte[] buffer = new byte[8192];
                     int bytesRead;
-                    while (!token.IsCancellationRequested && (bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), token)) > 0)
+                    while (!token.IsCancellationRequested && (bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
                     {
                         // Echo back the received message
-                        await stream.WriteAsync(buffer.AsMemory(0, bytesRead), token);
+                        await stream.WriteAsync(new ReadOnlyMemory<byte>(buffer, 0, bytesRead), token);
                         Console.WriteLine($"Echoed {bytesRead} bytes to the client.");
                     }
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!(ex is OperationCanceledException))
                 {
                     Console.WriteLine($"Error: {ex.Message}");
                 }
@@ -78,38 +75,31 @@ namespace EchoTcpServer
         public void Stop()
         {
             _cancellationTokenSource.Cancel();
-            _listener.Stop();
+            _listener?.Stop();
             _cancellationTokenSource.Dispose();
             Console.WriteLine("Server stopped.");
         }
 
         public static async Task Main(string[] args)
         {
-            EchoServer server = new EchoServer(5000);
-            // Start the server in a separate task
+            var server = new EchoServer(5000);
             _ = Task.Run(() => server.StartAsync());
-
             string host = "127.0.0.1"; // Target IP
             int port = 60000;          // Target Port
             int intervalMilliseconds = 5000; // Send every 5 seconds
-
             using (var sender = new UdpTimedSender(host, port))
             {
                 Console.WriteLine("Press any key to stop sending...");
                 sender.StartSending(intervalMilliseconds);
-
                 Console.WriteLine("Press 'q' to quit...");
                 while (Console.ReadKey(intercept: true).Key != ConsoleKey.Q)
                 {
                     // Just wait until 'q' is pressed
                 }
-
                 sender.StopSending();
                 server.Stop();
                 Console.WriteLine("Sender stopped.");
             }
-
-            await Task.CompletedTask;
         }
     }
 
@@ -118,9 +108,7 @@ namespace EchoTcpServer
         private readonly string _host;
         private readonly int _port;
         private readonly UdpClient _udpClient;
-        private Timer _timer;
-        private ushort _sequenceNumber;
-        private bool _disposed;
+        private Timer? _timer;
 
         public UdpTimedSender(string host, int port)
         {
@@ -133,11 +121,11 @@ namespace EchoTcpServer
         {
             if (_timer != null)
                 throw new InvalidOperationException("Sender is already running.");
-
             _timer = new Timer(SendMessageCallback, null, 0, intervalMilliseconds);
         }
 
-        private void SendMessageCallback(object state)
+        private ushort i = 0;
+        private void SendMessageCallback(object? state)
         {
             try
             {
@@ -145,8 +133,8 @@ namespace EchoTcpServer
                 Random rnd = new Random();
                 byte[] samples = new byte[1024];
                 rnd.NextBytes(samples);
-                _sequenceNumber++;
-                byte[] msg = (new byte[] { 0x04, 0x84 }).Concat(BitConverter.GetBytes(_sequenceNumber)).Concat(samples).ToArray();
+                i++;
+                byte[] msg = (new byte[] { 0x04, 0x84 }).Concat(BitConverter.GetBytes(i)).Concat(samples).ToArray();
                 var endpoint = new IPEndPoint(IPAddress.Parse(_host), _port);
                 _udpClient.Send(msg, msg.Length, endpoint);
                 Console.WriteLine($"Message sent to {_host}:{_port} ");
@@ -165,21 +153,9 @@ namespace EchoTcpServer
 
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                if (disposing)
-                {
-                    StopSending();
-                    _udpClient?.Dispose();
-                }
-                _disposed = true;
-            }
+            StopSending();
+            _udpClient.Dispose();
+            GC.SuppressFinalize(this); // Запобігає виклику фіналізатора
         }
     }
 }
