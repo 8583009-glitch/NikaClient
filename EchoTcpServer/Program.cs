@@ -14,12 +14,16 @@ namespace MyNamespace
     public class EchoServer
     {
         private readonly int _port;
+        private readonly ILogger _logger;
+        private readonly IClientHandler _clientHandler;
         private TcpListener? _listener;
         private CancellationTokenSource _cancellationTokenSource;
 
-        public EchoServer(int port)
+        public EchoServer(int port, ILogger logger, IClientHandler clientHandler)
         {
             _port = port;
+            _logger = logger;
+            _clientHandler = clientHandler;
             _cancellationTokenSource = new CancellationTokenSource();
         }
 
@@ -27,14 +31,15 @@ namespace MyNamespace
         {
             _listener = new TcpListener(IPAddress.Any, _port);
             _listener.Start();
-            Console.WriteLine($"Server started on port {_port}.");
+            _logger.Log($"Server started on port {_port}.");
+            
             while (!_cancellationTokenSource.Token.IsCancellationRequested)
             {
                 try
                 {
                     TcpClient client = await _listener.AcceptTcpClientAsync();
-                    Console.WriteLine("Client connected.");
-                    _ = Task.Run(() => HandleClientAsync(client, _cancellationTokenSource.Token));
+                    _logger.Log("Client connected.");
+                    _ = Task.Run(() => _clientHandler.HandleClientAsync(client, _cancellationTokenSource.Token));
                 }
                 catch (ObjectDisposedException)
                 {
@@ -42,34 +47,7 @@ namespace MyNamespace
                     break;
                 }
             }
-            Console.WriteLine("Server shutdown.");
-        }
-
-        private static async Task HandleClientAsync(TcpClient client, CancellationToken token)
-        {
-            using (NetworkStream stream = client.GetStream())
-            {
-                try
-                {
-                    byte[] buffer = new byte[8192];
-                    int bytesRead;
-                    while (!token.IsCancellationRequested && (bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
-                    {
-                        // Echo back the received message
-                        await stream.WriteAsync(new ReadOnlyMemory<byte>(buffer, 0, bytesRead), token);
-                        Console.WriteLine($"Echoed {bytesRead} bytes to the client.");
-                    }
-                }
-                catch (Exception ex) when (!(ex is OperationCanceledException))
-                {
-                    Console.WriteLine($"Error: {ex.Message}");
-                }
-                finally
-                {
-                    client.Close();
-                    Console.WriteLine("Client disconnected.");
-                }
-            }
+            _logger.Log("Server shutdown.");
         }
 
         public void Stop()
@@ -77,25 +55,32 @@ namespace MyNamespace
             _cancellationTokenSource.Cancel();
             _listener?.Stop();
             _cancellationTokenSource.Dispose();
-            Console.WriteLine("Server stopped.");
+            _logger.Log("Server stopped.");
         }
 
         public static async Task Main(string[] args)
         {
-            var server = new EchoServer(5000);
+            var logger = new ConsoleLogger();
+            var clientHandler = new ClientHandler(logger);
+            var server = new EchoServer(5000, logger, clientHandler);
+            
             _ = Task.Run(() => server.StartAsync());
-            string host = "127.0.0.1"; // Target IP
-            int port = 60000;          // Target Port
-            int intervalMilliseconds = 5000; // Send every 5 seconds
-            using (var sender = new UdpTimedSender(host, port))
+            
+            string host = "127.0.0.1";
+            int port = 60000;
+            int intervalMilliseconds = 5000;
+            
+            using (var sender = new UdpTimedSender(host, port, logger))
             {
                 Console.WriteLine("Press any key to stop sending...");
                 sender.StartSending(intervalMilliseconds);
                 Console.WriteLine("Press 'q' to quit...");
+                
                 while (Console.ReadKey(intercept: true).Key != ConsoleKey.Q)
                 {
                     // Just wait until 'q' is pressed
                 }
+                
                 sender.StopSending();
                 server.Stop();
                 Console.WriteLine("Sender stopped.");
@@ -107,13 +92,15 @@ namespace MyNamespace
     {
         private readonly string _host;
         private readonly int _port;
+        private readonly ILogger _logger;
         private readonly UdpClient _udpClient;
         private Timer? _timer;
 
-        public UdpTimedSender(string host, int port)
+        public UdpTimedSender(string host, int port, ILogger logger)
         {
             _host = host;
             _port = port;
+            _logger = logger;
             _udpClient = new UdpClient();
         }
 
@@ -129,19 +116,21 @@ namespace MyNamespace
         {
             try
             {
-                //dummy data
                 Random rnd = new Random();
                 byte[] samples = new byte[1024];
                 rnd.NextBytes(samples);
                 i++;
-                byte[] msg = (new byte[] { 0x04, 0x84 }).Concat(BitConverter.GetBytes(i)).Concat(samples).ToArray();
+                byte[] msg = (new byte[] { 0x04, 0x84 })
+                    .Concat(BitConverter.GetBytes(i))
+                    .Concat(samples)
+                    .ToArray();
                 var endpoint = new IPEndPoint(IPAddress.Parse(_host), _port);
                 _udpClient.Send(msg, msg.Length, endpoint);
-                Console.WriteLine($"Message sent to {_host}:{_port} ");
+                _logger.Log($"Message sent to {_host}:{_port}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error sending message: {ex.Message}");
+                _logger.Log($"Error sending message: {ex.Message}");
             }
         }
 
@@ -155,7 +144,7 @@ namespace MyNamespace
         {
             StopSending();
             _udpClient.Dispose();
-            GC.SuppressFinalize(this); // Запобігає виклику фіналізатора
+            GC.SuppressFinalize(this);
         }
     }
 }
