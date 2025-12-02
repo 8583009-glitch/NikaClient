@@ -11,8 +11,6 @@ jobs:
   sonar-check:
     name: Sonar Check
     runs-on: windows-latest
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,32 +18,39 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: SonarScanner Begin
+      
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v3
+        with:
+          path: ~\sonar\cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      
+      - name: Cache SonarCloud scanner
+        id: cache-sonar-scanner
+        uses: actions/cache@v3
+        with:
+          path: .\.sonar\scanner
+          key: ${{ runner.os }}-sonar-scanner
+          restore-keys: ${{ runner.os }}-sonar-scanner
+      
+      - name: Install SonarCloud scanner
+        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+        shell: powershell
         run: |
-          dotnet tool install --global dotnet-sonarscanner
-          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
-          dotnet sonarscanner begin `
-            /k:8583009-glitch_NikaClient `
-            /o:8583009-glitch `
-            /d:sonar.host.url=https://sonarcloud.io `
-            /d:sonar.token=$env:SONAR_TOKEN `
-            /d:sonar.cs.opencover.reportsPaths=**/coverage.xml `
-            /d:sonar.cpd.cs.minimumTokens=40 `
-            /d:sonar.cpd.cs.minimumLines=5 `
-            /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
-            /d:sonar.qualitygate.wait=false
-        shell: pwsh
-      - name: Restore
+          New-Item -Path .\.sonar\scanner -ItemType Directory
+          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+      
+      - name: Restore dependencies
         run: dotnet restore NetSdrClient.sln
-      - name: Build
-        run: dotnet build NetSdrClient.sln -c Release --no-restore
-      - name: Tests with coverage (OpenCover)
+      
+      - name: Build and analyze
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        shell: powershell
         run: |
-          dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
-            /p:CollectCoverage=true `
-            /p:CoverletOutput=TestResults/coverage.xml `
-            /p:CoverletOutputFormat=opencover
-        shell: pwsh
-      - name: SonarScanner End
-        run: dotnet sonarscanner end /d:sonar.token=$env:SONAR_TOKEN
-        shell: pwsh
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"8583009-glitch_NikaClient" /o:"8583009-glitch" /d:sonar.token="${env:SONAR_TOKEN}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.xml"
+          dotnet build NetSdrClient.sln -c Release --no-restore
+          dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build /p:CollectCoverage=true /p:CoverletOutput=TestResults/coverage.xml /p:CoverletOutputFormat=opencover
+          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${env:SONAR_TOKEN}"
