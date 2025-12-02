@@ -54,7 +54,6 @@ namespace NetSdrClientApp.Networking
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to connect: {ex.Message}");
-                // Видалено redundant Dispose() - вже зроблено вище в if (_cts != null)
                 _cts = null;
             }
         }
