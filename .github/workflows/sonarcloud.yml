@@ -11,6 +11,8 @@ jobs:
   sonar-check:
     name: Sonar Check
     runs-on: windows-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,7 +28,7 @@ jobs:
             /k:8583009-glitch_NikaClient `
             /o:8583009-glitch `
             /d:sonar.host.url=https://sonarcloud.io `
-            /d:sonar.token=${{ secrets.SONAR_TOKEN }} `
+            /d:sonar.token=$env:SONAR_TOKEN `
             /d:sonar.cs.opencover.reportsPaths=**/coverage.xml `
             /d:sonar.cpd.cs.minimumTokens=40 `
             /d:sonar.cpd.cs.minimumLines=5 `
@@ -45,5 +47,5 @@ jobs:
             /p:CoverletOutputFormat=opencover
         shell: pwsh
       - name: SonarScanner End
-        run: dotnet sonarscanner end /d:sonar.token=${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token=$env:SONAR_TOKEN
         shell: pwsh
