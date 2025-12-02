@@ -51,8 +51,7 @@ namespace NetSdrClientApp.Networking
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to connect: {ex.Message}");
-                _cts?.Dispose();
-                _cts = null;
+                DisconnectInternal();
             }
         }
 
