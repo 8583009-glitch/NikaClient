@@ -18,55 +18,32 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      
-      - name: Debug - Check if token exists
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrEmpty($env:SONAR_TOKEN)) {
-            Write-Host "ERROR: SONAR_TOKEN is empty or null!"
-            exit 1
-          } else {
-            Write-Host "SONAR_TOKEN exists (length: $($env:SONAR_TOKEN.Length))"
-          }
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      
-      - name: Install SonarScanner
-        shell: pwsh
+      - name: SonarScanner Begin
         run: |
           dotnet tool install --global dotnet-sonarscanner
           $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
-      
-      - name: SonarScanner Begin
-        shell: pwsh
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          Write-Host "Starting SonarScanner with token length: $($env:SONAR_TOKEN.Length)"
           dotnet sonarscanner begin `
-            /k:"8583009-glitch_NikaClient" `
-            /o:"8583009-glitch" `
-            /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.token="$env:SONAR_TOKEN" `
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.xml"
-      
+            /k:8583009-glitch_NikaClient `
+            /o:8583009-glitch `
+            /d:sonar.host.url=https://sonarcloud.io `
+            /d:sonar.token=${{ secrets.SONAR_TOKEN }} `
+            /d:sonar.cs.opencover.reportsPaths=**/coverage.xml `
+            /d:sonar.cpd.cs.minimumTokens=40 `
+            /d:sonar.cpd.cs.minimumLines=5 `
+            /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
+            /d:sonar.qualitygate.wait=false
+        shell: pwsh
       - name: Restore
         run: dotnet restore NetSdrClient.sln
-      
       - name: Build
         run: dotnet build NetSdrClient.sln -c Release --no-restore
-      
-      - name: Tests with coverage
-        shell: pwsh
+      - name: Tests with coverage (OpenCover)
         run: |
           dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
             /p:CollectCoverage=true `
             /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover
-      
-      - name: SonarScanner End
         shell: pwsh
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          dotnet sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
+      - name: SonarScanner End
+        run: dotnet sonarscanner end /d:sonar.token=${{ secrets.SONAR_TOKEN }}
+        shell: pwsh
