@@ -23,14 +23,14 @@ jobs:
           dotnet tool install --global dotnet-sonarscanner
           $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
           dotnet sonarscanner begin `
-            /k:"8583009-glitch_NikaClient" `
-            /o:"8583009-glitch" `
-            /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
+            /k:8583009-glitch_NikaClient `
+            /o:8583009-glitch `
+            /d:sonar.host.url=https://sonarcloud.io `
+            /d:sonar.token=${{ secrets.SONAR_TOKEN }} `
+            /d:sonar.cs.opencover.reportsPaths=**/coverage.xml `
             /d:sonar.cpd.cs.minimumTokens=40 `
             /d:sonar.cpd.cs.minimumLines=5 `
-            /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" `
+            /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
             /d:sonar.qualitygate.wait=false
         shell: pwsh
       - name: Restore
@@ -45,5 +45,5 @@ jobs:
             /p:CoverletOutputFormat=opencover
         shell: pwsh
       - name: SonarScanner End
-        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        run: dotnet sonarscanner end /d:sonar.token=${{ secrets.SONAR_TOKEN }}
         shell: pwsh
