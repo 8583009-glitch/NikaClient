@@ -60,9 +60,25 @@ namespace NetSdrClientAppTests
         [Test]
         public void TranslateMessage_ControlItem_Success()
         {
-            //Arrange - Тимчасово закоментовано через баг в NetSdrMessageHelper.TranslateMessage
-            // Буде виправлено після фіксу Enum.IsDefined
-            Assert.Pass("Test temporarily disabled due to bug in NetSdrMessageHelper line 86");
+            //Arrange
+            var expectedType = NetSdrMessageHelper.MsgTypes.SetControlItem;
+            var expectedCode = NetSdrMessageHelper.ControlItemCodes.ReceiverFrequency;
+            byte[] parameters = new byte[] { 1, 2, 3, 4, 5 };
+            byte[] msg = NetSdrMessageHelper.GetControlItemMessage(expectedType, expectedCode, parameters);
+
+            //Act
+            bool success = NetSdrMessageHelper.TranslateMessage(
+                msg,
+                out var actualType,
+                out var actualCode,
+                out var sequenceNumber,
+                out var body);
+
+            //Assert
+            Assert.That(success, Is.True);
+            Assert.That(actualType, Is.EqualTo(expectedType));
+            Assert.That(actualCode, Is.EqualTo(expectedCode));
+            Assert.That(body, Is.EqualTo(parameters));
         }
 
         [Test]
@@ -123,9 +139,59 @@ namespace NetSdrClientAppTests
         [Test]
         public void GetControlItemMessage_DifferentControlCodes_CreatesValidMessages()
         {
-            //Arrange - Тимчасово закоментовано через баг в NetSdrMessageHelper.TranslateMessage
-            // Буде виправлено після фіксу Enum.IsDefined
-            Assert.Pass("Test temporarily disabled due to bug in NetSdrMessageHelper line 86");
+            //Arrange
+            var testCases = new[]
+            {
+                NetSdrMessageHelper.ControlItemCodes.IQOutputDataSampleRate,
+                NetSdrMessageHelper.ControlItemCodes.RFFilter,
+                NetSdrMessageHelper.ControlItemCodes.ADModes,
+                NetSdrMessageHelper.ControlItemCodes.ReceiverState
+            };
+
+            foreach (var code in testCases)
+            {
+                //Act
+                byte[] msg = NetSdrMessageHelper.GetControlItemMessage(
+                    NetSdrMessageHelper.MsgTypes.SetControlItem,
+                    code,
+                    new byte[] { 1, 2, 3 });
+
+                bool success = NetSdrMessageHelper.TranslateMessage(
+                    msg,
+                    out var type,
+                    out var actualCode,
+                    out var seqNum,
+                    out var body);
+
+                //Assert
+                Assert.That(success, Is.True, $"Failed for code: {code}");
+                Assert.That(actualCode, Is.EqualTo(code));
+            }
+        }
+
+        [Test]
+        public void TranslateMessage_WithInvalidControlCode_ReturnsFalse()
+        {
+            //Arrange
+            var type = NetSdrMessageHelper.MsgTypes.SetControlItem;
+            // Використовуємо невалідний код (не з enum)
+            var invalidCodeBytes = BitConverter.GetBytes((ushort)0xFFFF);
+            var parameters = new byte[] { 1, 2, 3 };
+            
+            // Створюємо повідомлення вручну з невалідним кодом
+            var headerBytes = new byte[] { 0x09, 0x00 }; // type=0, length=9
+            var msg = headerBytes.Concat(invalidCodeBytes).Concat(parameters).ToArray();
+
+            //Act
+            bool success = NetSdrMessageHelper.TranslateMessage(
+                msg,
+                out var actualType,
+                out var actualCode,
+                out var seqNum,
+                out var body);
+
+            //Assert
+            Assert.That(success, Is.False);
         }
 
         [Test]
