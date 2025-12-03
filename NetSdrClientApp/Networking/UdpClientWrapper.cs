@@ -13,20 +13,20 @@ namespace NetSdrClientApp.Networking
         private readonly IPEndPoint _localEndPoint;
         private CancellationTokenSource? _cts;
         private UdpClient? _udpClient;
-        
+
         public event EventHandler<byte[]>? MessageReceived;
-        
+
         public UdpClientWrapper(int port)
         {
             _localEndPoint = new IPEndPoint(IPAddress.Any, port);
         }
-        
+
         public async Task StartListeningAsync()
         {
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
             Console.WriteLine("Start listening for UDP messages...");
-            
+
             try
             {
                 _udpClient = new UdpClient(_localEndPoint);
@@ -34,6 +34,7 @@ namespace NetSdrClientApp.Networking
                 {
                     UdpReceiveResult result = await _udpClient.ReceiveAsync(_cts.Token);
                     MessageReceived?.Invoke(this, result.Buffer);
+
                     Console.WriteLine($"Received from {result.RemoteEndPoint}");
                 }
             }
@@ -46,17 +47,17 @@ namespace NetSdrClientApp.Networking
                 Console.WriteLine($"Error receiving message: {ex.Message}");
             }
         }
-        
+
         public void StopListening()
         {
             StopListeningInternal();
         }
-        
+
         public void Exit()
         {
             StopListeningInternal();
         }
-        
+
         private void StopListeningInternal()
         {
             try
@@ -75,24 +76,15 @@ namespace NetSdrClientApp.Networking
                 Console.WriteLine($"Error while stopping: {ex.Message}");
             }
         }
-        
+
         public override int GetHashCode()
         {
             var payload = $"{nameof(UdpClientWrapper)}|{_localEndPoint.Address}|{_localEndPoint.Port}";
+
             using var md5 = MD5.Create();
             var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(payload));
+
             return BitConverter.ToInt32(hash, 0);
-        }
-        
-        // ← ДОДАНО ЦЕЙ МЕТОД
-        public override bool Equals(object? obj)
-        {
-            if (obj is UdpClientWrapper other)
-            {
-                return _localEndPoint.Address.Equals(other._localEndPoint.Address) 
-                    && _localEndPoint.Port == other._localEndPoint.Port;
-            }
-            return false;
         }
     }
 }
