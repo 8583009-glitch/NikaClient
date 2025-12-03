@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace NetSdrClientApp.Messages
 {
-    //TODO: analyze possible use of [StructLayout] for better performance and readability 
+    //TODO: analyze possible use of [StructLayout] for better performance and readability
     public static class NetSdrMessageHelper
     {
         private const short _maxMessageLength = 8191;
@@ -83,7 +83,8 @@ namespace NetSdrClientApp.Messages
                 msgEnumarable = msgEnumarable.Skip(_msgControlItemLength);
                 msgLength -= _msgControlItemLength;
 
-                if (Enum.IsDefined(typeof(ControlItemCodes), value))
+                // Виправлення: конвертуємо UInt16 в Int32 перед перевіркою
+                if (Enum.IsDefined(typeof(ControlItemCodes), (int)value))
                 {
                     itemCode = (ControlItemCodes)value;
                 }
