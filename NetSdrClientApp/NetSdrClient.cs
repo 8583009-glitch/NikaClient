@@ -19,6 +19,9 @@ namespace NetSdrClientApp
 
         public bool IQStarted { get; set; }
 
+        // Виправлення warning 1-2: ініціалізуємо поле
+        private TaskCompletionSource<byte[]>? responseTaskSource;
+
         public NetSdrClient(ITcpClient tcpClient, IUdpClient udpClient)
         {
             _tcpClient = tcpClient;
@@ -66,7 +69,7 @@ namespace NetSdrClientApp
                 return;
             }
 
-;           var iqDataMode = (byte)0x80;
+            var iqDataMode = (byte)0x80;
             var start = (byte)0x02;
             var fifo16bitCaptureMode = (byte)0x01;
             var n = (byte)1;
@@ -74,7 +77,7 @@ namespace NetSdrClientApp
             var args = new[] { iqDataMode, start, fifo16bitCaptureMode, n };
 
             var msg = NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.ReceiverState, args);
-            
+
             await SendTcpRequest(msg);
 
             IQStarted = true;
@@ -126,19 +129,18 @@ namespace NetSdrClientApp
             {
                 foreach (var sample in samples)
                 {
-                    sw.Write((short)sample); //write 16 bit per sample as configured 
+                    sw.Write((short)sample); //write 16 bit per sample as configured
                 }
             }
         }
 
-        private TaskCompletionSource<byte[]> responseTaskSource;
-
+        // Виправлення warning 3-4: повертаємо Array.Empty замість null
         private async Task<byte[]> SendTcpRequest(byte[] msg)
         {
             if (!_tcpClient.Connected)
             {
                 Console.WriteLine("No active connection.");
-                return null;
+                return Array.Empty<byte>();
             }
 
             responseTaskSource = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);

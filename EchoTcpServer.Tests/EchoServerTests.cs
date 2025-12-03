@@ -29,7 +29,7 @@ namespace EchoTcpServer.Tests
         }
 
         [Test]
-        public async Task Stop_LogsStopMessage()
+        public void Stop_LogsStopMessage()
         {
             // Arrange
             var server = new EchoServer(5556, _mockLogger.Object, _mockClientHandler.Object);

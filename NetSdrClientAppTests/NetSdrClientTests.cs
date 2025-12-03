@@ -48,7 +48,7 @@ public class NetSdrClientTests
     }
 
     [Test]
-    public async Task DisconnectWithNoConnectionTest()
+    public void DisconnectWithNoConnectionTest()
     {
         //act
         _client.Disconect();
@@ -61,7 +61,7 @@ public class NetSdrClientTests
     [Test]
     public async Task DisconnectTest()
     {
-        //Arrange 
+        //Arrange
         await ConnectAsyncTest();
 
         //act
@@ -75,7 +75,6 @@ public class NetSdrClientTests
     [Test]
     public async Task StartIQNoConnectionTest()
     {
-
         //act
         await _client.StartIQAsync();
 
@@ -88,7 +87,7 @@ public class NetSdrClientTests
     [Test]
     public async Task StartIQTest()
     {
-        //Arrange 
+        //Arrange
         await ConnectAsyncTest();
 
         //act
@@ -103,7 +102,7 @@ public class NetSdrClientTests
     [Test]
     public async Task StopIQTest()
     {
-        //Arrange 
+        //Arrange
         await ConnectAsyncTest();
 
         //act
