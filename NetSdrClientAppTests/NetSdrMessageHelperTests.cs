@@ -170,6 +170,31 @@ namespace NetSdrClientAppTests
         }
 
         [Test]
+        public void TranslateMessage_WithInvalidControlCode_ReturnsFalse()
+        {
+            //Arrange
+            var type = NetSdrMessageHelper.MsgTypes.SetControlItem;
+            // Використовуємо невалідний код (не з enum)
+            var invalidCodeBytes = BitConverter.GetBytes((ushort)0xFFFF);
+            var parameters = new byte[] { 1, 2, 3 };
+            
+            // Створюємо повідомлення вручну з невалідним кодом
+            var headerBytes = new byte[] { 0x09, 0x00 }; // type=0, length=9
+            var msg = headerBytes.Concat(invalidCodeBytes).Concat(parameters).ToArray();
+
+            //Act
+            bool success = NetSdrMessageHelper.TranslateMessage(
+                msg,
+                out var actualType,
+                out var actualCode,
+                out var seqNum,
+                out var body);
+
+            //Assert
+            Assert.That(success, Is.False);
+        }
+
+        [Test]
         public void GetDataItemMessage_EmptyParameters_CreatesValidMessage()
         {
             //Arrange

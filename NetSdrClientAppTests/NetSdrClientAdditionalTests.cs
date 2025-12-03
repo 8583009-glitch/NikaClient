@@ -246,6 +246,16 @@ public class NetSdrClientAdditionalTests
         _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.AtLeast(7)); // 3 init + 4 freq changes
     }
 
+    [Test]
+    public async Task ChangeFrequencyAsync_WithoutConnection_DoesNotThrow()
+    {
+        // Arrange - не підключаємось
+        
+        // Act & Assert - метод повинен обробити відсутність з'єднання
+        Assert.DoesNotThrowAsync(async () => 
+            await _client.ChangeFrequencyAsync(14000000, 1));
+    }
+
     private async Task ConnectAsync()
     {
         await _client.ConnectAsync();
