@@ -114,5 +114,50 @@ public class NetSdrClientTests
         Assert.That(_client.IQStarted, Is.False);
     }
 
+    [Test]
+    public async Task ChangeFrequencyAsyncTest()
+    {
+        //Arrange
+        await ConnectAsyncTest();
+
+        //act
+        await _client.ChangeFrequencyAsync(20000000, 1);
+
+        //assert
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Exactly(4)); // 3 from Connect + 1 from ChangeFrequency
+    }
+
+    [Test]
+    public async Task StopIQNoConnectionTest()
+    {
+        //act
+        await _client.StopIQAsync();
+
+        //assert
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
+        _tcpMock.VerifyGet(tcp => tcp.Connected, Times.AtLeastOnce);
+    }
+
+    [Test]
+    public async Task ConnectAsync_WhenAlreadyConnected_DoesNotReconnect()
+    {
+        //Arrange
+        await ConnectAsyncTest();
+        _tcpMock.ResetCalls();
+
+        //act
+        await _client.ConnectAsync();
+
+        //assert
+        _tcpMock.Verify(tcp => tcp.Connect(), Times.Never);
+    }
+
+    [Test]
+    public void IQStarted_InitiallyFalse()
+    {
+        //assert
+        Assert.That(_client.IQStarted, Is.False);
+    }
+
     //TODO: cover the rest of the NetSdrClient code here
 }
